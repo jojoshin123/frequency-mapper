@@ -1,1 +1,1 @@
-# blender-audio-visualizer
+# Frequency Mapper Add-on for Blender
