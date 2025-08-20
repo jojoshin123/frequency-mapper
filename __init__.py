@@ -10,17 +10,15 @@ bl_info = {
 }
 
 import bpy
-from .frequency_mapper import *
+from .virtucamera_blender import *
 
 classes = (
-    # TODO add frequency_mapper.py classes here
+
 )
 
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
-
-    # TODO might have to add Scene props here?
 
 def unregister():
     for cls in reversed(classes):
