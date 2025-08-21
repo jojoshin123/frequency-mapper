@@ -1,5 +1,13 @@
 import bpy
 import numpy as np
+# import pip
+# pip.main(['install', 'librosa', '--user'])
+
+import sys
+
+packages_path = "\\Users\\jonahshin\\.local\\ bin" + "\\..\\site-packages"
+sys.path.insert(0, packages_path)
+
 
 # ------------------------------------------------------------------------
 #   Operator (process the chosen file)
@@ -52,21 +60,53 @@ class FM_OT_ProcessAudio(bpy.types.Operator):
         self.report({'INFO'}, f"Processing audio: {filepath}")
 
         numpy_data = mp3_to_numpy_librosa(filepath)
-        arr = analyze_frequencies_sliding_window(numpy_data[0], numpy_data[1], n_bands=8, window_size=1024, hop_size=512)
+        arr = analyze_frequencies_sliding_window(numpy_data[0], numpy_data[1], n_bands=8, window_size=1024,
+                                                 hop_size=512)
+
+        fps = bpy.context.scene.render.fps
+        frames = [int(t * fps) for t in arr[1]]
+
+        arr_len = len(arr[0])
 
         obj1 = bpy.data.objects["1"]
+        obj1.animation_data_clear()
         obj2 = bpy.data.objects["2"]
+        obj2.animation_data_clear()
         obj3 = bpy.data.objects["3"]
+        obj3.animation_data_clear()
         obj4 = bpy.data.objects["4"]
+        obj4.animation_data_clear()
         obj5 = bpy.data.objects["5"]
+        obj1.animation_data_clear()
         obj6 = bpy.data.objects["6"]
+        obj1.animation_data_clear()
         obj7 = bpy.data.objects["7"]
+        obj1.animation_data_clear()
         obj8 = bpy.data.objects["8"]
+        obj1.animation_data_clear()
 
+        for i in range(arr_len):
+            obj1.scale.z = arr[0][i][0]
+            obj1.keyframe_insert(data_path="scale", index=2, frame=frames[i])
+            obj2.scale.z = arr[0][i][1]
+            obj2.keyframe_insert(data_path="scale", index=2, frame=frames[i])
+            obj3.scale.z = arr[0][i][2]
+            obj3.keyframe_insert(data_path="scale", index=2, frame=frames[i])
+            obj4.scale.z = arr[0][i][3]
+            obj4.keyframe_insert(data_path="scale", index=2, frame=frames[i])
+            obj5.scale.z = arr[0][i][4]
+            obj5.keyframe_insert(data_path="scale", index=2, frame=frames[i])
+            obj6.scale.z = arr[0][i][5]
+            obj6.keyframe_insert(data_path="scale", index=2, frame=frames[i])
+            obj7.scale.z = arr[0][i][6]
+            obj7.keyframe_insert(data_path="scale", index=2, frame=frames[i])
+            obj8.scale.z = arr[0][i][7]
+            obj8.keyframe_insert(data_path="scale", index=2, frame=frames[i])
 
         print(f"[DEBUG] Audio processing would happen here: {filepath}")
 
         return {'FINISHED'}
+
 
 # ------------------------------------------------------------------------
 #   Main Panel (UI)
@@ -91,7 +131,6 @@ class FM_PT_MainPanel(bpy.types.Panel):
         layout.operator("fm.process_audio", text="Process Audio")
 
 
-
 def analyze_frequencies_sliding_window(audio_data, sample_rate, n_bands=8, window_size=1024, hop_size=512):
     """
     Split audio into frequency bands over time using sliding window FFT
@@ -108,7 +147,6 @@ def analyze_frequencies_sliding_window(audio_data, sample_rate, n_bands=8, windo
         time_points: array of time points for each frame
         band_ranges: frequency ranges for each band
     """
-
 
     # Calculate number of time frames
     print(f"len(audio_data)={len(audio_data)}, window_size={window_size}, hop_size={hop_size}")
@@ -170,6 +208,7 @@ def analyze_frequencies_sliding_window(audio_data, sample_rate, n_bands=8, windo
 
     return time_frequency_data, time_points, band_ranges
 
+
 ##########################################################################################################################
 def mp3_to_numpy_librosa(filepath):
     """
@@ -198,9 +237,11 @@ def mp3_to_numpy_librosa(filepath):
 
     except ImportError:
         raise ImportError("Install librosa: pip install librosa")
+
+
 ##########################################################################################################################
 
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 # numpy_data = mp3_to_numpy_librosa(r"sample_ukg.mp3")
 # arr = analyze_frequencies_sliding_window(numpy_data[0], numpy_data[1], n_bands=8, window_size=1024, hop_size=512)
@@ -221,14 +262,14 @@ import matplotlib.pyplot as plt
 
 
 bl_info = {
-    "name" : "Frequency Mapper",
-    "author" : "Jonah Shin",
-    "description" : "Map audio frequency to object keyframes",
-    "blender" : (4, 4, 0),
-    "version" : (1, 1, 1),
-    "location" : "View3D > Frequency Mapper",
-    "warning" : "",
-    "category" : "Animation"
+    "name": "Frequency Mapper",
+    "author": "Jonah Shin",
+    "description": "Map audio frequency to object keyframes",
+    "blender": (4, 4, 0),
+    "version": (1, 1, 1),
+    "location": "View3D > Frequency Mapper",
+    "warning": "",
+    "category": "Animation"
 }
 
 # import bpy
@@ -240,17 +281,20 @@ classes = (
     FM_Properties
 )
 
+
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
 
     bpy.types.Scene.fm_props = bpy.props.PointerProperty(type=FM_Properties)
 
+
 def unregister():
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
 
     del bpy.types.Scene.fm_props
+
 
 if __name__ == "__main__":
     register()
