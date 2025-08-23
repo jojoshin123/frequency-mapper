@@ -22,6 +22,13 @@ class FM_Properties(bpy.types.PropertyGroup):
         subtype='FILE_PATH'
     )
 
+    # Add this new text input property
+    object_count: bpy.props.IntProperty(
+        name="Object Count",
+        description="Number of objects to map",
+        default=0
+    )
+
 
 class FM_OT_ProcessAudio(bpy.types.Operator):
     bl_idname = "fm.process_audio"
@@ -56,7 +63,7 @@ class FM_OT_ProcessAudio(bpy.types.Operator):
             self.report({'ERROR'}, f"Failed to import into VSE: {e}")
             return {'CANCELLED'}
 
-        # Placeholder for your librosa/numpy processing
+        # Librosa processing
         self.report({'INFO'}, f"Processing audio: {filepath}")
 
         numpy_data = mp3_to_numpy_librosa(filepath)
@@ -68,40 +75,25 @@ class FM_OT_ProcessAudio(bpy.types.Operator):
 
         arr_len = len(arr[0])
 
-        obj1 = bpy.data.objects["1"]
-        obj1.animation_data_clear()
-        obj2 = bpy.data.objects["2"]
-        obj2.animation_data_clear()
-        obj3 = bpy.data.objects["3"]
-        obj3.animation_data_clear()
-        obj4 = bpy.data.objects["4"]
-        obj4.animation_data_clear()
-        obj5 = bpy.data.objects["5"]
-        obj1.animation_data_clear()
-        obj6 = bpy.data.objects["6"]
-        obj1.animation_data_clear()
-        obj7 = bpy.data.objects["7"]
-        obj1.animation_data_clear()
-        obj8 = bpy.data.objects["8"]
-        obj1.animation_data_clear()
+        number_value = props.my_number_input
+
+        objects = []
+        for i in range(1,number_value+1):
+
+            # TEMP!!!########################################################################
+            bpy.ops.mesh.primitive_cube_add()
+            cube = bpy.context.active_object
+            cube.name = str(i)
+            cube.location = (i*5, i*5, 0.0)
+            #################################################################################
+
+            objects.append(bpy.data.objects[str(i)])
+            objects[-1].animation_data_clear()
 
         for i in range(arr_len):
-            obj1.scale.z = arr[0][i][0]
-            obj1.keyframe_insert(data_path="scale", index=2, frame=frames[i])
-            obj2.scale.z = arr[0][i][1]
-            obj2.keyframe_insert(data_path="scale", index=2, frame=frames[i])
-            obj3.scale.z = arr[0][i][2]
-            obj3.keyframe_insert(data_path="scale", index=2, frame=frames[i])
-            obj4.scale.z = arr[0][i][3]
-            obj4.keyframe_insert(data_path="scale", index=2, frame=frames[i])
-            obj5.scale.z = arr[0][i][4]
-            obj5.keyframe_insert(data_path="scale", index=2, frame=frames[i])
-            obj6.scale.z = arr[0][i][5]
-            obj6.keyframe_insert(data_path="scale", index=2, frame=frames[i])
-            obj7.scale.z = arr[0][i][6]
-            obj7.keyframe_insert(data_path="scale", index=2, frame=frames[i])
-            obj8.scale.z = arr[0][i][7]
-            obj8.keyframe_insert(data_path="scale", index=2, frame=frames[i])
+            for obj in objects:
+                obj.scale.z = arr[0][i][0]
+                obj.keyframe_insert(data_path="scale", index=2, frame=frames[i])
 
         print(f"[DEBUG] Audio processing would happen here: {filepath}")
 
@@ -127,8 +119,13 @@ class FM_PT_MainPanel(bpy.types.Panel):
         # File picker
         layout.prop(props, "audio_file")
 
+        # Object count
+        layout.prop(props, "object_count")
+
         # Process button
         layout.operator("fm.process_audio", text="Process Audio")
+
+
 
 
 def analyze_frequencies_sliding_window(audio_data, sample_rate, n_bands=8, window_size=1024, hop_size=512):
