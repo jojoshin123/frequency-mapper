@@ -79,17 +79,21 @@ class FM_OT_ProcessAudio(bpy.types.Operator):
 
 
         objects = []
+        object_scales = []
         for i in range(1,number_value+1):
 
+            obj = bpy.data.objects[str(i)]
+
             # TEMP!!!########################################################################
-            bpy.ops.mesh.primitive_cube_add()
-            cube = bpy.context.active_object
-            cube.name = str(i)
-            cube.location = (i*2, 0.0, 0.0)
+            # bpy.ops.mesh.primitive_cube_add()
+            # cube = bpy.context.active_object
+            # cube.name = str(i)
+            # cube.location = (i*2, 0.0, 0.0)
             #################################################################################
 
-            objects.append(bpy.data.objects[str(i)])
+            objects.append(obj)
             objects[-1].animation_data_clear()
+            object_scales.append(obj.scale.copy())
 
         epsilon = 1e-6  # for log adjustment
         for i in range(arr_len):
@@ -97,13 +101,14 @@ class FM_OT_ProcessAudio(bpy.types.Operator):
                 # Apply log scaling
                 amp = arr[0][i][j]
                 log_amp = np.log1p(amp + epsilon)  # log(1 + x)
-                z_scale = log_amp * 2.0
+                z_scale = log_amp * 10.0
 
-                if j == 0:
-                    print(f"\n\n\n{amp}\n\n\n")
-
-                obj.scale.z = z_scale
-                obj.keyframe_insert(data_path="scale", index=2, frame=frames[i])
+                # obj.scale.z = z_scale
+                x = object_scales[j][0] + z_scale
+                y = object_scales[j][1] + z_scale
+                z = object_scales[j][2]
+                obj.scale = (x, y, z)
+                obj.keyframe_insert(data_path="scale", frame=frames[i])
 
         print(f"[DEBUG] Audio processing would happen here: {filepath}")
 
