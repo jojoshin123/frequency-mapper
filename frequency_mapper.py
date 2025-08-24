@@ -155,39 +155,63 @@ def analyze_frequencies_sliding_window(audio_data, sample_rate, n_bands=8, windo
         band_ranges: frequency ranges for each band
     """
 
+    # Calculate number of time frames
+    print(f"len(audio_data)={len(audio_data)}, window_size={window_size}, hop_size={hop_size}")
+    n_frames = (len(audio_data) - window_size) // hop_size + 1
+
     # Set up frequency bands
     min_freq = 20
     max_freq = min(sample_rate // 2, 20000)
+    log_min = np.log10(min_freq)
+    log_max = np.log10(max_freq)
+    band_edges = np.logspace(log_min, log_max, n_bands + 1)
 
-    # Ensure mono
-    if audio_data.ndim > 1:
-        audio_data = np.mean(audio_data, axis=1)
+    print(f"n_frames={n_frames}")
 
-    # Determine how many bins per octave to cover the range
-    n_octaves = int(np.ceil(np.log2(max_freq / min_freq)))
-    bins_per_octave = n_bands // n_octaves if n_octaves > 0 else n_bands
+    # Initialize output arrays
+    time_frequency_data = np.zeros((n_frames, n_bands))
+    time_points = np.zeros(n_frames)
+    band_ranges = []
 
-    # Run CQT
-    cqt_result = librosa.cqt(
-        audio_data,
-        sr=sample_rate,
-        hop_length=hop_size,
-        fmin=min_freq,
-        n_bins=n_bands,
-        bins_per_octave=12
-    )
-    magnitude = np.abs(cqt_result)
+    # Create frequency array for window_size
+    frequencies = np.fft.fftfreq(window_size, 1 / sample_rate)[:window_size // 2]
 
-    # Transpose so shape = (time_frames, freq_bins)
-    time_frequency_data = magnitude.T
+    # Calculate band ranges
+    for i in range(n_bands):
+        band_ranges.append((band_edges[i], band_edges[i + 1]))
 
-    # Time points for each frame
-    time_points = librosa.frames_to_time(np.arange(time_frequency_data.shape[0]),
-                                         sr=sample_rate, hop_length=hop_size)
+    # Process each time frame
+    for frame_idx in range(n_frames):
+        start_idx = frame_idx * hop_size
+        end_idx = start_idx + window_size
 
-    # Band ranges: get actual CQT center freqs
-    freqs = librosa.cqt_frequencies(n_bins=n_bands, fmin=min_freq, bins_per_octave=bins_per_octave)
-    band_ranges = [(freqs[i], freqs[i + 1] if i + 1 < len(freqs) else freqs[i] * 2) for i in range(len(freqs))]
+        # Extract window
+        window = audio_data[start_idx:end_idx]
+
+        # Apply window function (Hanning window)
+        windowed = window * np.hanning(window_size)
+
+        # FFT
+        fft_data = np.fft.fft(windowed)
+        fft_magnitude = np.abs(fft_data[:window_size // 2])
+
+        # Calculate time point
+        time_points[frame_idx] = start_idx / sample_rate
+
+        # Extract frequency bands
+        for band_idx in range(n_bands):
+            freq_low = band_edges[band_idx]
+            freq_high = band_edges[band_idx + 1]
+
+            # Find frequencies in this band
+            mask = (frequencies >= freq_low) & (frequencies < freq_high)
+
+            if np.any(mask):
+                band_energy = np.mean(fft_magnitude[mask])
+            else:
+                band_energy = 0
+
+            time_frequency_data[frame_idx, band_idx] = band_energy
 
     return time_frequency_data, time_points, band_ranges
 
