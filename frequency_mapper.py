@@ -65,9 +65,10 @@ class FM_OT_ProcessAudio(bpy.types.Operator):
 
         # Librosa processing
         self.report({'INFO'}, f"Processing audio: {filepath}")
+        number_value = props.object_count
 
         numpy_data = mp3_to_numpy_librosa(filepath)
-        arr = analyze_frequencies_sliding_window(numpy_data[0], numpy_data[1], n_bands=8, window_size=1024,
+        arr = analyze_frequencies_sliding_window(numpy_data[0], numpy_data[1], n_bands=number_value, window_size=1024,
                                                  hop_size=512)
 
         fps = bpy.context.scene.render.fps
@@ -75,7 +76,6 @@ class FM_OT_ProcessAudio(bpy.types.Operator):
 
         arr_len = len(arr[0])
 
-        number_value = props.my_number_input
 
         objects = []
         for i in range(1,number_value+1):
@@ -84,15 +84,24 @@ class FM_OT_ProcessAudio(bpy.types.Operator):
             bpy.ops.mesh.primitive_cube_add()
             cube = bpy.context.active_object
             cube.name = str(i)
-            cube.location = (i*5, i*5, 0.0)
+            cube.location = (i*2, 0.0, 0.0)
             #################################################################################
 
             objects.append(bpy.data.objects[str(i)])
             objects[-1].animation_data_clear()
 
+        epsilon = 1e-6  # for log adjustment
         for i in range(arr_len):
-            for obj in objects:
-                obj.scale.z = arr[0][i][0]
+            for j, obj in enumerate(objects):
+                # Apply log scaling
+                amp = arr[0][i][j]
+                log_amp = np.log1p(amp + epsilon)  # log(1 + x)
+                z_scale = log_amp * 2.0
+
+                if j == 0:
+                    print(f"\n\n\n{amp}\n\n\n")
+
+                obj.scale.z = z_scale
                 obj.keyframe_insert(data_path="scale", index=2, frame=frames[i])
 
         print(f"[DEBUG] Audio processing would happen here: {filepath}")
