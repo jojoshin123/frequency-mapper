@@ -14,6 +14,22 @@ sys.path.insert(0, packages_path)
 #   Operator (process the chosen file)
 # ------------------------------------------------------------------------
 
+def transform_options(self, context):
+    return [
+        ("scale_x", "Scale X", "Scale X-axis"),
+        ("scale_y", "Scale Y", "Scale Y-axis"),
+        ("scale_z", "Scale Z", "Scale Z-axis"),
+    ]
+
+class ObjectTransforms(bpy.types.PropertyGroup):
+    obj_name: bpy.props.StringProperty(name="Name")
+    obj_value: bpy.props.EnumProperty(
+        name="Choose Option",
+        description="Select the transform of the object",
+        items=transform_options,
+        options={'ENUM_FLAG'},
+    )
+
 # Properties (holds file path)
 class FM_Properties(bpy.types.PropertyGroup):
     audio_file: bpy.props.StringProperty(
@@ -29,6 +45,8 @@ class FM_Properties(bpy.types.PropertyGroup):
         description="Number of objects to map",
         default=0
     )
+
+    items: bpy.props.CollectionProperty(type=ObjectTransforms)
 
 
 class FM_OT_ProcessAudio(bpy.types.Operator):
@@ -77,12 +95,15 @@ class FM_OT_ProcessAudio(bpy.types.Operator):
 
         arr_len = len(arr[0])
 
-
+        # TODO: just consolidate this to 1 array
         objects = []
-        object_scales = []
-        for i in range(1,number_value+1):
+        object_og_scales = []
+        object_transforms = []
 
-            obj = bpy.data.objects[str(i)]
+        # Populate object arrays
+        for i in range(0,number_value):
+
+            obj = bpy.data.objects[props.items[i].obj_name]
 
             # TEMP!!!########################################################################
             # bpy.ops.mesh.primitive_cube_add()
@@ -93,7 +114,10 @@ class FM_OT_ProcessAudio(bpy.types.Operator):
 
             objects.append(obj)
             objects[-1].animation_data_clear()
-            object_scales.append(obj.scale.copy())
+            object_og_scales.append(obj.scale.copy())
+            object_transforms.append(props.items[i].obj_value)
+
+        # print(f"\n\n\n{object_transforms}\n\n\n")
 
         epsilon = 1e-6  # for log adjustment
         for i in range(arr_len):
@@ -101,16 +125,39 @@ class FM_OT_ProcessAudio(bpy.types.Operator):
                 # Apply log scaling
                 amp = arr[0][i][j]
                 log_amp = np.log1p(amp + epsilon)  # log(1 + x)
-                z_scale = log_amp * 10.0
+                new_scale = log_amp * 5.0
 
-                # obj.scale.z = z_scale
-                x = object_scales[j][0] + z_scale
-                y = object_scales[j][1] + z_scale
-                z = object_scales[j][2]
+                # Apply transforms
+                x = object_og_scales[j][0]
+                y = object_og_scales[j][1]
+                z = object_og_scales[j][2]
+
+                for transform in object_transforms[j]:
+                    if transform == "scale_x":
+                        x += new_scale
+                    if transform == "scale_y":
+                        y += new_scale
+                    if transform == "scale_z":
+                        z += new_scale
+
                 obj.scale = (x, y, z)
                 obj.keyframe_insert(data_path="scale", frame=frames[i])
 
         print(f"[DEBUG] Audio processing would happen here: {filepath}")
+
+        return {'FINISHED'}
+
+class FM_OT_Sync_Object_Count(bpy.types.Operator):
+    bl_idname = "fm.sync_object_count"
+    bl_label = "Sync Object Count"
+    bl_description = "Split audio into frequency ranges and animate objects"
+
+    def execute(self, context):
+        props = context.scene.fm_props
+        while len(props.items) < props.object_count:
+            props.items.add()
+        while len(props.items) > props.object_count:
+            props.items.remove(len(props.items) - 1)
 
         return {'FINISHED'}
 
@@ -136,6 +183,14 @@ class FM_PT_MainPanel(bpy.types.Panel):
 
         # Object count
         layout.prop(props, "object_count")
+
+        layout.operator("fm.sync_object_count", text="Sync Object Count")
+
+        for i, item in enumerate(props.items):
+            box = layout.box()
+            box.label(text=f"Object {i + 1}")
+            box.prop(item, "obj_name")
+            box.prop(item, "obj_value")
 
         # Process button
         layout.operator("fm.process_audio", text="Process Audio")
@@ -290,6 +345,8 @@ bl_info = {
 classes = (
     FM_PT_MainPanel,
     FM_OT_ProcessAudio,
+    FM_OT_Sync_Object_Count,
+    ObjectTransforms,
     FM_Properties
 )
 
